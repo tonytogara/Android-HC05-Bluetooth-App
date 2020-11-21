@@ -1,6 +1,7 @@
 package zw.co.tonytogara.keepusane;
 
 import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.bluetooth.BluetoothAdapter;
@@ -15,6 +16,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -46,18 +48,13 @@ public class MainActivity extends AppCompatActivity
     private TextView mLocalTimeView;
     /* Bluetooth API */
     private BluetoothManager mBluetoothManager;
-    private BluetoothGattServer mBluetoothGattServer;
-    private BluetoothLeAdvertiser mBluetoothLeAdvertiser;
-    /* Collection of notification subscribers */
-    private Set<BluetoothDevice> mRegisteredDevices = new HashSet<>();
     BluetoothAdapter btAdapter;
 
     private static final int REQUEST_ENABLE_BT = 1;
-    TextView mTextView;
+    TextView mTextView, mDisconnectedTV;
     BluetoothDevice mDevice;
     BluetoothSocket mmSocket;
     OutputStream mmOutputStream;
-    InputStream mmInputStream;
 
     private final int REQ_CODE = 100;
     TextView textView;
@@ -71,8 +68,9 @@ public class MainActivity extends AppCompatActivity
 
         // widgets
         mTextView = (TextView)findViewById(R.id.connectedDevices);
+        mDisconnectedTV = (TextView)findViewById(R.id.disconnectedTV);
 
-        // Devices with a display should not go to sleep
+        // Application should not go to sleep
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         // Getting the Bluetooth adapter
@@ -102,15 +100,18 @@ public class MainActivity extends AppCompatActivity
         else
             {
             Log.d("SYSTEM_STATUS", "Bluetooth enabled...starting services");
-//            startAdvertising();
-//            startServer();
         }
+
+        // check if the device is connected and show status
+        checkBluetoothDeviceConnectivityState();
 
         textView = findViewById(R.id.text);
         ImageView speak = findViewById(R.id.speak);
-        speak.setOnClickListener(new View.OnClickListener() {
+        speak.setOnClickListener(new View.OnClickListener()
+        {
             @Override
-            public void onClick(View v) {
+            public void onClick(View v)
+            {
                 Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
                 intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                         RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
@@ -128,6 +129,54 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
+    public boolean onCreateOptionsMenu(Menu menu)
+    {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item)
+    {
+        switch (item.getItemId())
+        {
+            case R.id.action_view_devices:
+
+                String message = "";
+                mTextView.setText("");
+
+                if(btAdapter==null)
+                {
+                    Log.d("SYSTEM_STATUS", "Bluetooth NOT supported. Aborting.");
+                    message = "Device is not supported";
+                } else {
+                    if (btAdapter.isEnabled())
+                    {
+                        Log.d("SYSTEM_STATUS", "Bluetooth is enabled...");
+
+                        // Listing paired devices
+                        mTextView.append("Paired Devices are:");
+                        Set<BluetoothDevice> devices = btAdapter.getBondedDevices();
+                        for (BluetoothDevice device : devices) {
+//                            mTextView.append("\n->" + device.getName() + ", " + device);
+                            mTextView.append("\n->" + device.getName());
+                        }
+
+                        message = mTextView.getText().toString();
+                    }
+                }
+
+                showMessage("Devices", message);
+                break;
+            case R.id.action_reconnect_to_device:
+                checkBluetoothDeviceConnectivityState();
+                break;
+        }
+        return true;
+    }
+
+    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         switch (requestCode) {
@@ -140,15 +189,15 @@ public class MainActivity extends AppCompatActivity
                     textView.setText(result.get(0).toString());
 
                     // send the speech to the device
-                    checkBluetoothState(result.get(0).toString());
+                    sendTextToDevice(result.get(0).toString());
                 }
                 break;
             }
         }
     }
 
-    // send speech to bluetooth device
-    private void checkBluetoothState(String speech)
+    // check bluetooth device connectivity
+    private void checkBluetoothDeviceConnectivityState()
     {
         // Checks for the Bluetooth support and then makes sure it is turned on
         // If it isn't turned on, request to turn it on
@@ -184,6 +233,7 @@ public class MainActivity extends AppCompatActivity
                             Log.d("ArduinoBT", "UUIDS " + device.getUuids()[0]);
                             Log.d("ArduinoBT", "UUIDS_SIZE " + device.getUuids().length);
 
+                            // retrieve the accurate connected device UUID
 //                            ParcelUuid[] idArray = device.getUuids();
 //                            java.util.UUID uuid = null;
 //
@@ -226,6 +276,159 @@ public class MainActivity extends AppCompatActivity
 
                                 if (mmSocket.isConnected())
                                 {
+                                    // device is connected
+                                    mDisconnectedTV.setText("Connected");
+                                    mDisconnectedTV.setTextColor(Color.GREEN);
+
+                                    Log.d("SYSTEM_STATUS", " socket Connected");
+                                    Toast.makeText(getApplicationContext(), "Connected", Toast.LENGTH_SHORT).show();
+                                }else
+                                {
+                                    Log.d("SYSTEM_STATUS", "Socket Not Connected");
+                                    Toast.makeText(getApplicationContext(), "Socket Not Connected", Toast.LENGTH_SHORT).show();
+                                }
+                            } catch (IOException e)
+                            {
+                                try
+                                {
+                                    // Failed to connect
+                                    Log.d("SYSTEM_STATUS", "trying fallback...");
+
+                                    mDisconnectedTV.setText("Disconnected");
+                                    mDisconnectedTV.setTextColor(Color.RED);
+
+                                } catch (Exception e2)
+                                {
+                                    if (!mmSocket.isConnected())
+                                    {
+                                        Log.e("SYSTEM_STATUS", "Couldn't establish Bluetooth connection!");
+                                        finish();
+                                    }
+                                }
+                            }
+                            break;
+                        }else
+                        {
+                            mDisconnectedTV.setText("Disconnected");
+                            mDisconnectedTV.setTextColor(Color.RED);
+                        }
+                    }
+                }
+            } else
+            {
+                //Prompt user to turn on Bluetooth
+                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+            }
+        }
+    }
+
+    private void sendTextToDevice(String speech)
+    {
+        String s = speech;
+
+        Log.d("SYSTEM_STATUS", "NOW ATTEMPTING TO WRITE");
+
+        try {
+            mmOutputStream = mmSocket.getOutputStream();
+            Log.d("TAG", "got output stream");
+        } catch (IOException ex) {
+            Log.d("SYSTEM_STATUS", ex.toString());
+        }
+
+        try {
+            // sending data to bluetooth
+            mmOutputStream.write(s.getBytes());
+            Log.d("SYSTEM_STATUS", "wrote value " + s + " on serial out");
+        } catch (IOException ex) {
+            Log.d("SYSTEM_STATUS", ex.toString());
+        }
+    }
+
+    // send speech to bluetooth device
+    private void checkBluetoothState(String speech)
+    {
+        // Checks for the Bluetooth support and then makes sure it is turned on
+        // If it isn't turned on, request to turn it on
+        // List paired devices
+        if(btAdapter==null)
+        {
+            Log.d("SYSTEM_STATUS", "Bluetooth NOT supported. Aborting.");
+            return;
+        } else {
+            if (btAdapter.isEnabled())
+            {
+                Log.d("SYSTEM_STATUS", "Bluetooth is enabled...");
+
+                // Listing paired devices
+                mTextView.append("\nPaired Devices are:");
+                Set<BluetoothDevice> devices = btAdapter.getBondedDevices();
+                for (BluetoothDevice device : devices)
+                {
+                    mTextView.append("\n  Device: " + device.getName() + ", " + device);
+                }
+
+                if(devices.size() > 0)
+                {
+                    for(BluetoothDevice device : devices)
+                    {
+                        if(device.getName().startsWith("HC-"))
+                        {
+                            mDevice = device;
+                            Toast.makeText(getBaseContext(), "Device Connected", Toast.LENGTH_LONG).show();
+
+                            Log.d("ArduinoBT", "findBT found device named " + device.getName());
+                            Log.d("ArduinoBT", "device address is " + device.getAddress());
+                            Log.d("ArduinoBT", "UUIDS " + device.getUuids()[0]);
+                            Log.d("ArduinoBT", "UUIDS_SIZE " + device.getUuids().length);
+
+                            // retrieve the accurate connected device UUID
+//                            ParcelUuid[] idArray = device.getUuids();
+//                            java.util.UUID uuid = null;
+//
+//                            for (int x = 0; x < idArray.length; x++)
+//                            {
+//                                java.util.UUID uuidYouCanUse = java.util.UUID.fromString(idArray[x].toString());
+//
+//                                try {
+//                                    mmSocket = device.createRfcommSocketToServiceRecord(uuidYouCanUse);
+//                                } catch (IOException e) {
+//                                    Toast.makeText(getBaseContext(), "S", Toast.LENGTH_SHORT).show();
+//                                }
+//
+//                                try {
+//                                    mmSocket.connect();
+//                                    uuid = uuidYouCanUse;
+//                                    break;
+//                                } catch (IOException e)
+//                                {
+//
+//                                    Log.d("SYSTEM_STATUS", "ERROR_" + e.getLocalizedMessage());
+//
+//                                }
+//                            }
+
+
+//                            UUID uuid = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb"); //Standard SerialPortService ID
+//                            UUID uuid = UUID.fromString("UUIDS 00001101-0000-1000-8000-00805f9b34fb"); //Standard SerialPortService ID
+
+                            UUID uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+                            try {
+                                mmSocket = device.createRfcommSocketToServiceRecord(uuid);
+                            } catch (IOException e) {
+                                Log.e("SYSTEM_STATUS", e.toString());
+                            }
+                            try {
+                                mmSocket.connect();
+                                Log.d("SYSTEM_STATUS", "socket connected");
+                                Toast.makeText(getApplicationContext(), "Connected", Toast.LENGTH_SHORT).show();
+
+                                if (mmSocket.isConnected())
+                                {
+                                    // device is connected
+                                    mDisconnectedTV.setText("Connected");
+                                    mDisconnectedTV.setTextColor(Color.GREEN);
+
                                     Log.d("SYSTEM_STATUS", " socket Connected");
                                     Toast.makeText(getApplicationContext(), "Connected", Toast.LENGTH_SHORT).show();
                                 }else
@@ -266,18 +469,15 @@ public class MainActivity extends AppCompatActivity
                                             findViewById(android.R.id.content),
                                             "Failed to connect to unit",
                                             Snackbar.LENGTH_INDEFINITE)
-                                            .setAction("Reload", new View.OnClickListener()
+                                            .setAction("Reconnect", new View.OnClickListener()
                                             {
                                                 @Override
                                                 public void onClick(View v)
                                                 {
                                                     // check if location has been found
-                                                    checkBluetoothState(speech);
+                                                    sendTextToDevice(speech);
                                                 }
                                             }).show();
-
-//                                    mmSocket = (BluetoothSocket) device.getClass().getMethod("createRfcommSocket", new Class[]{int.class}).invoke(device, 1);
-//                                    mmSocket.connect();
 
                                 } catch (Exception e2)
                                 {
@@ -289,7 +489,11 @@ public class MainActivity extends AppCompatActivity
                                 }
                             }
                             break;
-                        }
+                        }else
+                            {
+                                mDisconnectedTV.setText("Disconnected");
+                                mDisconnectedTV.setTextColor(Color.RED);
+                            }
                     }
                 }
             } else
@@ -299,48 +503,6 @@ public class MainActivity extends AppCompatActivity
                     startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
             }
         }
-    }
-
-    private void createSocket(final String s )throws IOException
-    {
-        new AsyncTask<Void, Void, Void>(){
-            @Override
-            protected Void doInBackground(Void... params) {
-
-                try {
-                    mmOutputStream = mmSocket.getOutputStream();
-                    Log.d("TAG", "got output stream");
-                } catch (IOException e) {
-                    Log.d("SYSTEM_STATUS", e.toString());
-                }
-
-                try {
-                    // sending data to bluetooth
-                    mmOutputStream.write(s.getBytes());
-                    Log.d("SYSTEM_STATUS", "wrote value " + s + " on serial out");
-                } catch (IOException e) {
-                    Log.d("SYSTEM_STATUS", e.toString());
-                }
-
-                return null;
-            }
-
-        }.execute();
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu)
-    {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item)
-    {
-
-        return true;
     }
 
     /**
@@ -368,30 +530,35 @@ public class MainActivity extends AppCompatActivity
      * Listens for Bluetooth adapter events to enable/disable
      * advertising and server functionality.
      */
-    private BroadcastReceiver mBluetoothReceiver = new BroadcastReceiver() {
+    private BroadcastReceiver mBluetoothReceiver = new BroadcastReceiver()
+    {
         @Override
-        public void onReceive(Context context, Intent intent) {
+        public void onReceive(Context context, Intent intent)
+        {
             int state = intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.STATE_OFF);
 
-            switch (state) {
+            switch (state)
+            {
                 case BluetoothAdapter.STATE_ON:
-//                    startAdvertising();
-//                    startServer();
-
-                    Toast.makeText(getBaseContext(), "State ON", Toast.LENGTH_LONG).show();
-
+                    Toast.makeText(getBaseContext(), "Bluetooth TURNED ON", Toast.LENGTH_LONG).show();
                     break;
                 case BluetoothAdapter.STATE_OFF:
-//                    stopServer();
-//                    stopAdvertising();
-
-                    Toast.makeText(getBaseContext(), "State Off", Toast.LENGTH_LONG).show();
-
+                    Toast.makeText(getBaseContext(), "Bluetooth TURNED OFF", Toast.LENGTH_LONG).show();
                     break;
                 default:
                     // Do nothing
             }
-
         }
     };
+
+    // show message dialog
+    public void showMessage(String title, String message)
+    {
+        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+        builder.setCancelable(false);
+        builder.setTitle(title);
+        builder.setMessage(message);
+        builder.setPositiveButton(android.R.string.ok, null);
+        builder.show();
+    }
 }

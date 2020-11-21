@@ -1,32 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:padding="5dp"
     tools:context=".MainActivity">
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Devices"
-        android:id="@+id/connectedDevices"/>
+        android:id="@+id/connectedDevices"
+        android:visibility="invisible"/>
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/rectangle_shape_colour_primary_border"
+        android:id="@+id/layout"
+        android:padding="5dp">
 
-    <TextView
-        android:id = "@+id/text"
-        android:textSize = "30sp"
-        android:layout_width = "wrap_content"
-        android:layout_height = "wrap_content"
-        android:layout_centerInParent="true"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:text="HC-05 Device"
+            android:gravity="center_vertical"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"/>
+
+        <TextView
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="@color/colorPrimary"/>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_weight="1">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Connectivity Status"
+                android:textStyle="bold"
+                android:layout_gravity="center_horizontal"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:id="@+id/disconnectedTV"
+                android:text="Pending"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/rectangle_shape_colour_primary_border"
+        android:layout_below="@+id/layout"
+        android:orientation="vertical"
+        android:padding="5dp"
+        android:layout_marginTop="5dp">
+
+        <TextView
+            android:layout_width = "match_parent"
+            android:text="CAPTURED SPEECH"
+            android:layout_height = "wrap_content"
+            android:textSize = "10sp"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:id = "@+id/text"
+            android:textSize = "30sp"
+            android:layout_width = "match_parent"
+            android:layout_height = "wrap_content"/>
+    </LinearLayout>
 
     <ImageView
         android:id = "@+id/speak"
-        android:layout_width = "wrap_content"
-        android:layout_height = "wrap_content"
+        android:layout_width = "100dp"
+        android:layout_height = "100dp"
         android:background = "?selectableItemBackground"
         android:src = "@android:drawable/ic_btn_speak_now"
-        android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true"/>
+        android:layout_centerInParent="true"/>
 
 </RelativeLayout>

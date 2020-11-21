@@ -2,8 +2,11 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
-        android:id="@+id/action_checklist"
-        android:orderInCategory="100"
+        android:id="@+id/action_view_devices"
         android:title="View Devices"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_reconnect_to_device"
+        android:title="Reconnect To Device"
         app:showAsAction="never" />
 </menu>
