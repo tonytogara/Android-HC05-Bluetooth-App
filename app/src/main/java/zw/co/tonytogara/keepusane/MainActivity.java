@@ -292,7 +292,7 @@ public class MainActivity extends AppCompatActivity
                                 try
                                 {
                                     // Failed to connect
-                                    Log.d("SYSTEM_STATUS", "trying fallback...");
+                                    Log.d("SYSTEM_STATUS", "trying fallback....");
 
                                     mDisconnectedTV.setText("Disconnected");
                                     mDisconnectedTV.setTextColor(Color.RED);
